@@ -1,0 +1,44 @@
+github:
+  repositories:
+    - StarRocks/starrocks
+    - apache/spark
+    - apache/iceberg
+    - apache/polaris
+    - apache/superset
+    - linkedin/datahub
+  search_queries:
+    - "starrocks best practice"
+    - "spark lakehouse iceberg"
+    - "data lakehouse architecture"
+
+rss_feeds:
+  - name: "StarRocks Blog"
+    url: "https://www.starrocks.io/blog/rss"
+    category: "starrocks"
+  - name: "Databricks Blog"
+    url: "https://www.databricks.com/feed"
+    category: "spark"
+  - name: "dev.to StarRocks"
+    url: "https://dev.to/feed/tag/starrocks"
+    category: "starrocks"
+  - name: "dev.to Spark"
+    url: "https://dev.to/feed/tag/apachespark"
+    category: "spark"
+
+hackernews:
+  search_queries:
+    - "StarRocks"
+    - "Apache Spark"
+    - "Data Lakehouse"
+    - "Apache Iceberg"
+  min_points: 5
+
+geeknews:
+  enabled: true
+  url: "https://news.hada.io"
+
+reddit:
+  subreddits:
+    - dataengineering
+    - apachespark
+  min_upvotes: 10

@@ -1,0 +1,33 @@
+primary:
+  - StarRocks
+  - Apache Spark
+  - Apache Iceberg
+  - Data Lakehouse
+
+secondary:
+  - Polaris Catalog
+  - DataHub metadata
+  - Superset dashboard
+  - OLAP analytics
+  - real-time analytics
+
+tertiary:
+  - AI-ready data
+  - feature store
+  - vector database
+  - data mesh
+  - data fabric
+  - Kubernetes data platform
+
+enterprise:
+  - Baidu data platform
+  - Alibaba data lake
+  - ByteDance data
+  - Meituan StarRocks
+  - JD data pipeline
+
+negative:
+  - job posting
+  - hiring
+  - recruitment
+  - salary

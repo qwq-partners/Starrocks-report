@@ -1,0 +1,47 @@
+app:
+  name: "daily-practices-collector"
+  version: "1.0.0"
+  timezone: "Asia/Seoul"
+
+schedule:
+  cron: "0 9 * * *"
+  retry_on_failure: true
+  max_retries: 3
+
+collection:
+  max_items_per_source: 50
+  request_timeout: 30
+  rate_limit_delay: 1.0
+  concurrent_collectors: 5
+  lookback_hours: 26
+
+deduplication:
+  url_normalization: true
+  simhash_threshold: 3
+  enable_semantic: false
+
+enrichment:
+  llm_provider: "anthropic"
+  llm_model: "claude-sonnet-4-6"
+  max_articles_to_summarize: 30
+  min_relevance_for_summary: 0.3
+
+report:
+  output_dir: "./reports"
+  format:
+    - markdown
+    - html
+  max_highlights: 5
+  include_stats: true
+
+distribution:
+  slack:
+    enabled: false
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    channel: "#data-platform-news"
+  email:
+    enabled: false
+
+storage:
+  db_path: "./data/articles.db"
+  keep_days: 90

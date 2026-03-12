@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "daily-practices-collector"
+version = "1.0.0"
+description = "Daily collector for StarRocks/Spark best practices from various sources"
+requires-python = ">=3.11"
+dependencies = [
+    "aiohttp>=3.9",
+    "feedparser>=6.0",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.0",
+    "jinja2>=3.1",
+    "pyyaml>=6.0",
+    "anthropic>=0.40",
+    "apscheduler>=3.10",
+    "click>=8.1",
+    "structlog>=24.0",
+    "aiosqlite>=0.20",
+    "markdown>=3.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+collector = "src.main:cli"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
