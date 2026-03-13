@@ -97,20 +97,21 @@ class TelegramNotifier:
         session = await self._get_session()
 
         try:
-            data = aiohttp.FormData()
-            data.add_field("chat_id", self.chat_id)
-            data.add_field("document", open(file_path, "rb"), filename=file_path.split("/")[-1])
-            if caption:
-                data.add_field("caption", caption[:1024])
-                data.add_field("parse_mode", "HTML")
+            with open(file_path, "rb") as f:
+                data = aiohttp.FormData()
+                data.add_field("chat_id", self.chat_id)
+                data.add_field("document", f, filename=file_path.rsplit("/", 1)[-1])
+                if caption:
+                    data.add_field("caption", caption[:1024])
+                    data.add_field("parse_mode", "HTML")
 
-            async with session.post(url, data=data, timeout=aiohttp.ClientTimeout(total=60)) as resp:
-                if resp.status == 200:
-                    logger.info("telegram_document_sent", file=file_path)
-                    return True
-                err = await resp.json()
-                logger.error("telegram_document_failed", error=err)
-                return False
+                async with session.post(url, data=data, timeout=aiohttp.ClientTimeout(total=60)) as resp:
+                    if resp.status == 200:
+                        logger.info("telegram_document_sent", file=file_path)
+                        return True
+                    err = await resp.json()
+                    logger.error("telegram_document_failed", error=err)
+                    return False
         except Exception as e:
             logger.error("telegram_document_error", error=str(e))
             return False

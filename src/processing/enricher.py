@@ -3,6 +3,7 @@
 import asyncio
 import json
 import os
+import re
 
 import anthropic
 import structlog
@@ -43,7 +44,7 @@ class Enricher:
     def __init__(self, model: str = "claude-sonnet-4-6", max_articles: int = 30):
         self.model = model
         self.max_articles = max_articles
-        self._api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        self._api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
         self.client = anthropic.AsyncAnthropic(api_key=self._api_key) if self._api_key else None
 
     async def enrich_articles(self, articles: list[CollectedArticle]) -> list[CollectedArticle]:
@@ -86,10 +87,12 @@ class Enricher:
             messages=[{"role": "user", "content": prompt}],
         )
 
+        if not response.content:
+            return {}
         text = response.content[0].text.strip()
-        # Extract JSON from response
-        if text.startswith("```"):
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-        return json.loads(text)
+        # Extract JSON from response - use regex for robustness
+        match = re.search(r'\{[\s\S]*\}', text)
+        if not match:
+            logger.warning("no_json_in_response", text_preview=text[:200])
+            return {}
+        return json.loads(match.group())

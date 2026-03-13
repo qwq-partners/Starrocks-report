@@ -100,7 +100,7 @@ class Database:
         async with aiosqlite.connect(self.db_path) as db:
             for article in articles:
                 try:
-                    await db.execute(
+                    cursor_ins = await db.execute(
                         """INSERT OR IGNORE INTO articles
                         (title, url, url_normalized, source, source_type,
                          content_snippet, full_content, author, language,
@@ -130,7 +130,8 @@ class Database:
                             json.dumps(article.metadata, ensure_ascii=False, default=str),
                         ),
                     )
-                    saved += 1
+                    if cursor_ins.rowcount > 0:
+                        saved += 1
 
                     # Save tags
                     cursor = await db.execute(
@@ -185,6 +186,9 @@ class Database:
             await db.execute(
                 "DELETE FROM articles WHERE collected_at < datetime('now', ?)",
                 (f"-{keep_days} days",),
+            )
+            await db.execute(
+                "DELETE FROM article_tags WHERE article_id NOT IN (SELECT id FROM articles)"
             )
             await db.commit()
         logger.info("old_articles_cleaned", keep_days=keep_days)

@@ -60,7 +60,7 @@ async def test_duplicate_url_not_saved_twice(db):
     ]
     await db.save_articles(articles)
     saved = await db.save_articles(articles)  # second save
-    assert saved == 1  # INSERT OR IGNORE, still returns 1 but no actual insert
+    assert saved == 0  # INSERT OR IGNORE, duplicate not counted
 
     urls = await db.get_existing_urls()
     assert len(urls) == 1
