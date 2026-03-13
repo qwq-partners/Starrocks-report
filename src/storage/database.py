@@ -164,6 +164,22 @@ class Database:
             )
             await db.commit()
 
+    async def log_collection(
+        self, collector_name: str, items_collected: int, items_new: int,
+        status: str, error_message: str | None = None,
+        started_at: str | None = None,
+    ):
+        """Record a collection run in collection_logs."""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                """INSERT INTO collection_logs
+                (collector_name, started_at, finished_at, items_collected, items_new, status, error_message)
+                VALUES (?, ?, datetime('now'), ?, ?, ?, ?)""",
+                (collector_name, started_at or datetime.now().isoformat(),
+                 items_collected, items_new, status, error_message),
+            )
+            await db.commit()
+
     async def cleanup_old_articles(self, keep_days: int = 90):
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(

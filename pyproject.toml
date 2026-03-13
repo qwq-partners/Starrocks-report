@@ -9,6 +9,7 @@ description = "Daily collector for StarRocks/Spark best practices from various s
 requires-python = ">=3.11"
 dependencies = [
     "aiohttp>=3.9",
+    "python-dotenv>=1.0",
     "feedparser>=6.0",
     "beautifulsoup4>=4.12",
     "lxml>=5.0",

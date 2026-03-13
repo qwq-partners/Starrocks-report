@@ -35,6 +35,8 @@ report:
   include_stats: true
 
 distribution:
+  telegram:
+    enabled: true
   slack:
     enabled: false
     webhook_url: "${SLACK_WEBHOOK_URL}"

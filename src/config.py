@@ -30,6 +30,16 @@ class Config:
         return self.keywords.get("negative", [])
 
     @property
+    def keyword_groups(self) -> dict:
+        """Return keyword groups dict for weighted relevance scoring."""
+        return {
+            "primary": self.keywords.get("primary", []),
+            "secondary": self.keywords.get("secondary", []),
+            "tertiary": self.keywords.get("tertiary", []),
+            "enterprise": self.keywords.get("enterprise", []),
+        }
+
+    @property
     def db_path(self) -> str:
         return self.app["storage"]["db_path"]
 

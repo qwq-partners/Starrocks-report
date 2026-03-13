@@ -42,3 +42,22 @@ reddit:
     - dataengineering
     - apachespark
   min_upvotes: 10
+
+tech_blogs:
+  - name: "StarRocks Blog"
+    url: "https://www.starrocks.io/blog"
+    scrape_method: "html"
+    category: "starrocks"
+  - name: "Tabular Blog"
+    url: "https://tabular.io/blog"
+    scrape_method: "html"
+    category: "iceberg"
+  - name: "Alibaba Cloud Blog"
+    url: "https://www.alibabacloud.com/blog"
+    scrape_method: "html"
+    category: "enterprise"
+  - name: "Meituan Tech"
+    url: "https://tech.meituan.com"
+    scrape_method: "html"
+    language: "zh"
+    category: "enterprise"

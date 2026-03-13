@@ -1,0 +1,171 @@
+"""Telegram notification for daily reports."""
+
+import asyncio
+import os
+
+import aiohttp
+import structlog
+
+logger = structlog.get_logger()
+
+TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
+MAX_MESSAGE_LENGTH = 4096
+
+
+class TelegramNotifier:
+    def __init__(
+        self,
+        bot_token: str | None = None,
+        chat_id: str | None = None,
+    ):
+        self.bot_token = bot_token or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        self.chat_id = chat_id or os.environ.get("TELEGRAM_CHAT_ID", "")
+        self._session: aiohttp.ClientSession | None = None
+
+    @property
+    def is_configured(self) -> bool:
+        return bool(self.bot_token and self.chat_id)
+
+    async def _get_session(self) -> aiohttp.ClientSession:
+        if not self._session or self._session.closed:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def close(self):
+        if self._session and not self._session.closed:
+            await self._session.close()
+
+    async def send_message(
+        self,
+        text: str,
+        parse_mode: str = "HTML",
+        disable_notification: bool = False,
+    ) -> bool:
+        """Send a text message. Auto-splits if exceeding 4096 chars."""
+        if not self.is_configured:
+            logger.warning("telegram_not_configured")
+            return False
+
+        chunks = self._split_message(text)
+        success = True
+        for chunk in chunks:
+            ok = await self._send(chunk, parse_mode, disable_notification)
+            if not ok:
+                success = False
+            if len(chunks) > 1:
+                await asyncio.sleep(0.5)
+        return success
+
+    async def _send(
+        self, text: str, parse_mode: str, disable_notification: bool,
+        max_retries: int = 2,
+    ) -> bool:
+        url = TELEGRAM_API.format(token=self.bot_token, method="sendMessage")
+        payload = {
+            "chat_id": self.chat_id,
+            "text": text,
+            "parse_mode": parse_mode,
+            "disable_notification": disable_notification,
+        }
+
+        session = await self._get_session()
+        for attempt in range(1 + max_retries):
+            try:
+                async with session.post(
+                    url, json=payload, timeout=aiohttp.ClientTimeout(total=30)
+                ) as resp:
+                    if resp.status == 200:
+                        return True
+                    data = await resp.json()
+                    logger.warning("telegram_send_failed", status=resp.status, error=data)
+            except Exception as e:
+                logger.warning("telegram_send_error", error=str(e), attempt=attempt + 1)
+
+            if attempt < max_retries:
+                await asyncio.sleep(1)
+
+        return False
+
+    async def send_document(
+        self, file_path: str, caption: str = "",
+    ) -> bool:
+        """Send a file (e.g., report markdown/PDF)."""
+        if not self.is_configured:
+            return False
+
+        url = TELEGRAM_API.format(token=self.bot_token, method="sendDocument")
+        session = await self._get_session()
+
+        try:
+            data = aiohttp.FormData()
+            data.add_field("chat_id", self.chat_id)
+            data.add_field("document", open(file_path, "rb"), filename=file_path.split("/")[-1])
+            if caption:
+                data.add_field("caption", caption[:1024])
+                data.add_field("parse_mode", "HTML")
+
+            async with session.post(url, data=data, timeout=aiohttp.ClientTimeout(total=60)) as resp:
+                if resp.status == 200:
+                    logger.info("telegram_document_sent", file=file_path)
+                    return True
+                err = await resp.json()
+                logger.error("telegram_document_failed", error=err)
+                return False
+        except Exception as e:
+            logger.error("telegram_document_error", error=str(e))
+            return False
+
+    async def send_report_summary(
+        self, report_date: str, stats: dict, highlights: list[dict],
+    ) -> bool:
+        """Send a formatted daily report summary to Telegram."""
+        lines = [
+            f"<b>📊 Daily Data Platform Report</b>",
+            f"<b>{report_date}</b>",
+            "",
+            f"수집: {stats.get('total_raw', 0)}건 | "
+            f"신규: {stats.get('new_count', 0)}건 | "
+            f"중복제거: {stats.get('dedup_count', 0)}건",
+            "",
+        ]
+
+        if highlights:
+            lines.append("<b>🔥 Highlights</b>")
+            for i, h in enumerate(highlights[:5], 1):
+                title = self._escape_html(h.get("title", ""))
+                url = h.get("url", "")
+                summary = self._escape_html(h.get("summary", "")[:150])
+                lines.append(f"{i}. <a href=\"{url}\">{title}</a>")
+                if summary:
+                    lines.append(f"   <i>{summary}</i>")
+            lines.append("")
+
+        lines.append("<i>Generated by Daily Practices Collector v1.0</i>")
+        text = "\n".join(lines)
+
+        return await self.send_message(text)
+
+    @staticmethod
+    def _escape_html(text: str) -> str:
+        return (
+            text.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
+
+    @staticmethod
+    def _split_message(text: str) -> list[str]:
+        if len(text) <= MAX_MESSAGE_LENGTH:
+            return [text]
+        chunks = []
+        while text:
+            if len(text) <= MAX_MESSAGE_LENGTH:
+                chunks.append(text)
+                break
+            # Split at last newline within limit
+            cut = text[:MAX_MESSAGE_LENGTH].rfind("\n")
+            if cut <= 0:
+                cut = MAX_MESSAGE_LENGTH
+            chunks.append(text[:cut])
+            text = text[cut:].lstrip("\n")
+        return chunks

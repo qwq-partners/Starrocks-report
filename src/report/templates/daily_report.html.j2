@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Data Platform Report - {{ report_date }}</title>
+<style>
+  :root { --primary: #1a73e8; --bg: #f8f9fa; --card: #fff; --text: #202124; --muted: #5f6368; --border: #dadce0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+  header { background: var(--primary); color: #fff; padding: 32px 0; margin-bottom: 24px; }
+  header .container { display: flex; justify-content: space-between; align-items: center; }
+  header h1 { font-size: 1.5rem; font-weight: 600; }
+  .stats-bar { display: flex; gap: 24px; font-size: 0.9rem; opacity: 0.9; }
+  .card { background: var(--card); border-radius: 8px; border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 1.1rem; color: var(--primary); margin-bottom: 12px; border-bottom: 2px solid var(--primary); padding-bottom: 8px; }
+  .highlight { border-left: 4px solid var(--primary); }
+  .highlight h3 { font-size: 1rem; margin-bottom: 4px; }
+  .highlight h3 a { color: var(--text); text-decoration: none; }
+  .highlight h3 a:hover { color: var(--primary); text-decoration: underline; }
+  .highlight .summary { color: var(--muted); font-size: 0.9rem; margin: 4px 0 8px; }
+  .highlight .takeaways { list-style: disc; padding-left: 20px; font-size: 0.85rem; color: var(--muted); }
+  .highlight + .highlight { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); border-left: 4px solid var(--primary); }
+  .article-list { list-style: none; }
+  .article-list li { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .article-list li:last-child { border-bottom: none; }
+  .article-list a { color: var(--text); text-decoration: none; font-weight: 500; }
+  .article-list a:hover { color: var(--primary); }
+  .article-list .source { font-size: 0.8rem; color: var(--muted); margin-left: 8px; }
+  .article-list .sub-summary { display: block; font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th { text-align: left; padding: 8px; background: var(--bg); border-bottom: 2px solid var(--border); }
+  td { padding: 8px; border-bottom: 1px solid var(--border); }
+  td a { color: var(--text); text-decoration: none; }
+  td a:hover { color: var(--primary); }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .stat-item { background: var(--bg); padding: 12px; border-radius: 6px; text-align: center; }
+  .stat-item .value { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
+  .stat-item .label { font-size: 0.8rem; color: var(--muted); }
+  footer { text-align: center; padding: 24px; font-size: 0.8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <div class="container">
+    <h1>Daily Data Platform Practices Report</h1>
+    <div class="stats-bar">
+      <span>{{ report_date }}</span>
+      <span>수집 {{ articles | length }}건</span>
+      <span>신규 {{ stats.new_count }}건</span>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <!-- Statistics -->
+  <div class="card">
+    <h2>통계</h2>
+    <div class="stats-grid">
+      <div class="stat-item"><div class="value">{{ stats.total_raw }}</div><div class="label">전체 수집</div></div>
+      <div class="stat-item"><div class="value">{{ stats.new_count }}</div><div class="label">신규</div></div>
+      <div class="stat-item"><div class="value">{{ stats.dedup_count }}</div><div class="label">중복 제거</div></div>
+      <div class="stat-item"><div class="value">{{ stats.saved_count }}</div><div class="label">저장</div></div>
+    </div>
+  </div>
+
+  <!-- Highlights -->
+  {% if highlights %}
+  <div class="card">
+    <h2>Today's Highlights</h2>
+    {% for article in highlights %}
+    <div class="highlight">
+      <h3><a href="{{ article.url }}" target="_blank">{{ article.title | e }}</a></h3>
+      {% if article.summary_ko %}
+      <p class="summary">{{ article.summary_ko | e }}</p>
+      {% elif article.content_snippet %}
+      <p class="summary">{{ article.content_snippet[:200] | e }}</p>
+      {% endif %}
+      {% if article.key_takeaways %}
+      <ul class="takeaways">
+        {% for kt in article.key_takeaways %}
+        <li>{{ kt | e }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Category Sections -->
+  {% for cat, label in category_labels.items() %}
+  {% if categorized.get(cat) %}
+  <div class="card">
+    <h2>{{ label }}</h2>
+    <ul class="article-list">
+      {% for article in categorized[cat][:10] %}
+      <li>
+        <a href="{{ article.url }}" target="_blank">{{ article.title | e }}</a>
+        <span class="source">{{ article.source }}</span>
+        {% if article.summary_ko %}
+        <span class="sub-summary">{{ article.summary_ko | e }}</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  {% endfor %}
+
+  <!-- GitHub Trending -->
+  {% if gh_trending %}
+  <div class="card">
+    <h2>GitHub Trending</h2>
+    <table>
+      <thead><tr><th>Repo</th><th>Stars</th><th>설명</th></tr></thead>
+      <tbody>
+        {% for article in gh_trending[:10] %}
+        <tr>
+          <td><a href="{{ article.url }}" target="_blank">{{ article.title | e }}</a></td>
+          <td>{{ article.metadata.get("stars", "?") }}</td>
+          <td>{{ article.content_snippet[:80] | e }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<footer>
+  Generated by Daily Practices Collector v1.0 | {{ report_date }}
+</footer>
+</body>
+</html>

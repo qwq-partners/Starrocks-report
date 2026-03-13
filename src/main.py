@@ -1,17 +1,27 @@
 """Main entry point for the Daily Practices Collector."""
 
 import asyncio
+import os
 from datetime import datetime
+from pathlib import Path
 
 import click
 import structlog
+from dotenv import load_dotenv
+
+# Load .env from project root
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from .config import Config
-from .collectors import GitHubCollector, HackerNewsCollector, GeekNewsCollector, RSSCollector
+from .collectors import (
+    GitHubCollector, HackerNewsCollector, GeekNewsCollector, RSSCollector,
+    RedditCollector, TechBlogCollector,
+)
 from .processing.deduplicator import Deduplicator
 from .processing.enricher import Enricher
 from .report.generator import ReportGenerator
 from .storage.database import Database
+from .distribution.telegram_notifier import TelegramNotifier
 from .utils.logger import setup_logging
 
 logger = structlog.get_logger()
@@ -36,36 +46,38 @@ async def run_collection(config: Config, skip_enrichment: bool = False):
     }
     keywords = config.all_keywords
     negative = config.negative_keywords
+    keyword_groups = config.keyword_groups
 
     # Run collectors in parallel
     collectors = [
-        GitHubCollector(keywords, negative, collector_config),
-        HackerNewsCollector(keywords, negative, collector_config),
-        GeekNewsCollector(keywords, negative, collector_config),
-        RSSCollector(keywords, negative, collector_config),
+        GitHubCollector(keywords, negative, collector_config, keyword_groups),
+        HackerNewsCollector(keywords, negative, collector_config, keyword_groups),
+        GeekNewsCollector(keywords, negative, collector_config, keyword_groups),
+        RSSCollector(keywords, negative, collector_config, keyword_groups),
+        RedditCollector(keywords, negative, collector_config, keyword_groups),
+        TechBlogCollector(keywords, negative, collector_config, keyword_groups),
     ]
 
     all_articles = []
+    collector_stats = []
+    collection_started = datetime.now().isoformat()
     results = await asyncio.gather(
         *[c.collect() for c in collectors], return_exceptions=True
     )
 
     total_raw = 0
     for collector, result in zip(collectors, results):
+        name = collector.get_source_name()
         if isinstance(result, Exception):
-            logger.error(
-                "collector_failed",
-                collector=collector.get_source_name(),
-                error=str(result),
-            )
+            logger.error("collector_failed", collector=name, error=str(result))
+            await db.log_collection(name, 0, 0, "failed", str(result), started_at=collection_started)
             continue
-        total_raw += len(result)
+        count = len(result)
+        total_raw += count
         all_articles.extend(result)
-        logger.info(
-            "collector_done",
-            collector=collector.get_source_name(),
-            count=len(result),
-        )
+        collector_stats.append({"name": name, "count": count})
+        await db.log_collection(name, count, 0, "success", started_at=collection_started)
+        logger.info("collector_done", collector=name, count=count)
 
     logger.info("total_raw_collected", count=total_raw)
 
@@ -115,6 +127,24 @@ async def run_collection(config: Config, skip_enrichment: bool = False):
         dedup=dedup_count,
         path=report_path,
     )
+
+    # Telegram notification
+    telegram_config = config.app.get("distribution", {}).get("telegram", {})
+    if telegram_config.get("enabled", True):
+        notifier = TelegramNotifier()
+        if notifier.is_configured:
+            highlights = [
+                {"title": a.title, "url": a.url, "summary": a.summary_ko or a.content_snippet[:200]}
+                for a in unique_articles
+                if a.relevance_to_team == "high"
+            ][:5]
+            if not highlights:
+                highlights = [
+                    {"title": a.title, "url": a.url, "summary": a.summary_ko or a.content_snippet[:200]}
+                    for a in sorted(unique_articles, key=lambda x: x.relevance_score, reverse=True)
+                ][:5]
+            await notifier.send_report_summary(report_date, stats, highlights)
+            await notifier.close()
 
     # Cleanup old data
     await db.cleanup_old_articles(keep_days=config.app["storage"]["keep_days"])

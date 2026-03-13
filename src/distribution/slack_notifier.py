@@ -30,9 +30,9 @@ class SlackNotifier:
                 "text": {
                     "type": "mrkdwn",
                     "text": (
-                        f"*수집:* {stats.get('total', 0)}건 | "
-                        f"*신규:* {stats.get('new', 0)}건 | "
-                        f"*중복제거:* {stats.get('dedup', 0)}건"
+                        f"*수집:* {stats.get('total_raw', 0)}건 | "
+                        f"*신규:* {stats.get('new_count', 0)}건 | "
+                        f"*중복제거:* {stats.get('dedup_count', 0)}건"
                     ),
                 },
             },

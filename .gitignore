@@ -11,8 +11,8 @@ build/
 data/*.db
 data/*.sqlite
 
-# Reports (generated)
-reports/*/
+# Reports - keep in git for GH Actions auto-commit
+# reports/*/
 
 # Environment
 .env

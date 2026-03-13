@@ -1,5 +1,5 @@
 # Daily Data Platform Practices Report
-**{{ report_date }}** | 수집 건수: {{ total_count }}건 | 신규: {{ new_count }}건
+**{{ report_date }}** | 수집 건수: {{ articles | length }}건 | 신규: {{ stats.new_count }}건
 
 ---
 
@@ -8,6 +8,8 @@
 ### {{ loop.index }}. [{{ article.title }}]({{ article.url }})
 {% if article.summary_ko %}
 > {{ article.summary_ko }}
+{% elif article.content_snippet %}
+> {{ article.content_snippet[:200] }}
 {% endif %}
 {% if article.key_takeaways %}
 {% for kt in article.key_takeaways %}
@@ -16,21 +18,31 @@
 {% endif %}
 
 {% endfor %}
-
-{% for cat, label in categories.items() %}
-{% if categorized[cat] %}
+{% for cat, label in category_labels.items() %}
+{% if categorized.get(cat) %}
 ## {{ label }}
+
 {% for article in categorized[cat][:10] %}
 - [{{ article.title }}]({{ article.url }}) ({{ article.source }})
 {% if article.summary_ko %}  > {{ article.summary_ko }}{% endif %}
+
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% if gh_trending %}
+## GitHub Trending
+
+| Repo | Stars | 설명 |
+|------|-------|------|
+{% for article in gh_trending[:10] %}
+| [{{ article.title }}]({{ article.url }}) | {{ article.metadata.get("stars", "?") }} | {{ article.content_snippet[:80] }} |
 {% endfor %}
 
 {% endif %}
-{% endfor %}
-
 ## 통계
-- 전체 수집: {{ total_count }}건
-- 중복 제거: {{ dedup_count }}건
+
+- 전체 수집: {{ articles | length }}건
+- 중복 제거: {{ stats.dedup_count }}건
 - 소스별: {{ source_stats_str }}
 - 카테고리별: {{ category_stats_str }}
 
